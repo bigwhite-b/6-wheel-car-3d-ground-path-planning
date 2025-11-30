@@ -439,27 +439,31 @@ class CarRobotEnv(gym.Env):
         dist_to_goal = math.sqrt(((car_ob[0] - self.goal[0]) ** 2 +
                                 (car_ob[1] - self.goal[1]) ** 2))
         
-        # Calculate reward based on distance
-        reward = abs(self.prev_dist_to_goal - dist_to_goal)  # Reward based on distance
+        # Progress reward：向目标靠近得到正奖励，远离则惩罚
+        distance_progress = self.prev_dist_to_goal - dist_to_goal
+        reward = 2.0 * distance_progress
+
+        # 轻微时间惩罚，鼓励尽快到达目标
+        reward -= 0.05
 
         # 地形平缓度奖励（仅对高度场地形）
         if self.terrain_data is not None:
             slope = self.get_terrain_slope(car_ob[0], car_ob[1])
             # 坡度越小，奖励越大（平缓路面奖励）
-            # 使用指数衰减：坡度为0时奖励最大(0.1)，坡度越大奖励越小
-            slope_reward = 0.5 * math.exp(-slope * 5)
+            # 使用指数衰减：坡度为0时奖励最大，过陡时衰减更快
+            slope_reward = 0.3 * math.exp(-slope * 8)
             reward += slope_reward
 
         # Check if done: whether the car is out of bounds
         if (car_ob[0] >= 10 or car_ob[0] <= -10 or
             car_ob[1] >= 10 or car_ob[1] <= -10):
             self.done = True
-            reward = 0  # Penalize the car if it goes out of bounds
+            reward = -5  # Penalize the car if it goes out of bounds
 
         # Check if done: whether the car reaches the goal
         elif dist_to_goal < 1:
             self.done = True
-            reward = 10  # High reward if the car reaches the goal
+            reward = 20  # High reward if the car reaches the goal
             print(f"Goal reached! Reward: {reward}")
 
         # Return the calculated reward
